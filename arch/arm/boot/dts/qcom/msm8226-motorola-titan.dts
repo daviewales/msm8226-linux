@@ -169,13 +169,22 @@
 		};
 	};
 
-	// Search DISP_VDDIO_EN in downstream msm8226-moto-gpiomux.dtsi
+	// Search vddio_disp_reg in downstream msm8226-titan-common.dtsi for gpio
+    // number and `regulator-boot-on`.
+    // Get other properties from downstream msm8226-moto-common.dtsi.
 	// Because this is common between falcon and titan we should be good.
 	vddio_disp_vreg: regulator-vddio-disp {
 		compatible = "regulator-fixed";
 		regulator-name = "vddio_disp";
-		gpio = <&tlmm 34 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&pm8226_l8>;
+		gpio = <&tlmm 10 GPIO_ACTIVE_HIGH>;
+        // This appears to be property `parent-supply` in downstream
+        // msm8226-moto-common.dtsi. However, msm8226-titan-common.dtsi appears
+        // to overwrite this with `/delete-property/ parent-supply
+        // So, commenting out for now..
+        // The schematic _might_ indicate that this should be:
+        // vin-supply = <&pm8226_lvs1>, but not sure.
+        // So leaving commented to see if it works without it.
+		/* vin-supply = <&pm8226_l8>; */
 		startup-delay-us = <300>;
 		enable-active-high;
 		regulator-boot-on;
@@ -550,7 +559,6 @@
 	status = "okay";
 };
 
-//TODO: Up to here
 &tlmm {
 	// Search tps65132@3e in downstream msm8226-titan-common.dtsi
 	reg_lcd_default: reg-lcd-default-state {
@@ -561,13 +569,17 @@
 		output-high;
 	};
 
-    // Search pin@fd51220 or DISP_VDDIO_EN in downstream
-    // msm8226-moto-gpiomux.dtsi
+    // Search pin@fd510a0 or LCD_IOVDD_EN in downstream
+    // msm8226-titan-gpiomux.dtsi
     // A comment indicates drive strength is 2mA and output-high.
-    // Not sure where bias-disable comes from. Perhaps it is
-    // qcom,pin-keep-state?
+    // Where does bias-disable comes from?
+    // StandaSK says:
+    //     "bias-* corresponds to qcom,pull in -gpiomux.dtsi. bias-disable
+    //     is <0> (i.e. none)"
+    // https://matrix.to/#/!SOoKsgrhnZdLcBqEXp:z3ntu.xyz/$acg1EhXV3ifdM-Jbe32EIZrcC58FA1Ka0MESjgZUPDM?via=z3ntu.xyz&via=matrix.org&via=tchncs.de
+    
 	reg_vddio_disp_default: reg-vddio-disp-default-state {
-		pins = "gpio34";
+		pins = "gpio10";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
