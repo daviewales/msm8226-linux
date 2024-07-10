@@ -1,0 +1,601 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
+/dts-v1/;
+
+#include "qcom-msm8226.dtsi"
+#include "pm8226.dtsi"
+
+// NOTE: Why delete this smem_region node?
+// This is deleted because the smem_region defined in the included
+// qcom-msm8226.dtsi is invalid. It defines:
+//     reg = <0x3000000 0x100000>;
+// but instead, should be:
+//     0x0fa00000 0x500000
+// as defined in both the following downstream locations:
+// - msm8226-titan-common.dtsi
+// - msm8226-moto-common.dtsi
+// As per the previously mainlined motorola-falcon, smem_region is redefined
+// later in this file to be:
+//     0x0fa00000 0x100000
+// followed by reserved:
+//     0x0fb00000 0x400000
+// to yield the total reserved memory from downstream:
+//     0x0fa00000 0x500000
+//
+// I have confirmed that 0x0fa00000 0x500000 is consistently reserved for both
+// the falcon and the titan, so am comfortable to leave this in.
+//
+// Read the following for hints on what smem_region is:
+// https://patchwork.kernel.org/project/linux-arm-msm/patch/20180418073259.18645-1-sven.eckelmann@openmesh.com/
+//
+// TL;DR: smem_region (and reserved memory region in general) are regions of
+// memory which are reserved for the hardware, and which Linux should not touch.
+// If Linux tries to access them it can causes crashes and other bugs, so we
+// reserve them here.
+
+/delete-node/ &smem_region;
+
+/ {
+	model = "Motorola Moto G2 (2014)";
+	compatible = "motorola,titan", "qcom,msm8226";
+	chassis-type = "handset";
+
+// In mainline qcom-msm8226.dtsi, sdhc_1 is the label for mmc@f9824900, which
+// has reg address 0xf9824900. Grepping for this reg address in downstream
+// shows it is defined in downstream msm8226.dtsi. This is included in both the
+// following downstream files:
+//
+// - msm8226-v1.dtsi
+// - msm8226-v2.dtsi
+//
+// which are then included in the following downstream files (among others):
+//
+// - msm8226-v1.dtsi
+//     - msm8226-falcon-p1.dts
+//     - msm8226-falcon-p2.dts
+//
+// - msm8226-v2.dtsi
+//     - msm8226-falcon-p2-v2.dts
+//     - msm8226-falcon-p2b.dts
+//     - msm8226-falcon-p2b1.dts
+//     - msm8226-falcon-p3c.dts
+//     - msm8226-titan-4b.dts
+//     - msm8226-titan-4c.dts
+//     - msm8226-titan-4d.dts
+//     - msm8226-titan-4e.dts
+//     - msm8226-titan-4f.dts
+//
+// Note that for the titan at least, all the respective 4b, 4c, 4d, etc files
+// are identical, and have the same includes. The only difference is the value
+// of qcom,msm-id.
+
+// Notes on: mmc0 = &sdhc_1:
+//
+// sdhc_1 is the label for mmc@f9824900 in mainline.
+// the reg section is the same as downstream.
+// The reg-names are similar enough
+// The interupts are the same (after mapping the constants to their values),
+// except that in mainline the third value is IRQ_TYPE_LEVEL_HIGH (defined: 4)
+// but in downstream, the value is 0, which is equivalent to
+// IRQ_TYPE_LEVEL_NONE, which is the default unspecified value.
+// I asked a question about this, and it appears pretty common for it to be 0
+// in downstream. I think it's a safe bet to copy over IRQ_TYPE_LEVEL_HIGH.
+// https://matrix.to/#/!SOoKsgrhnZdLcBqEXp:z3ntu.xyz/$m1M1eiJIu7aH6OGJDVa6MBIk1jyC4JlnqKgR6qq-Sqc?via=z3ntu.xyz&via=matrix.org&via=tchncs.de
+
+// In mainline, sdhc_1 has a few sections which are different to the downstream
+// sections. The following are in mainline, but not downstream (at least on first
+// inspection):
+//
+// - clocks
+// - clock-names
+// - pinctrl-names
+// - pinctrl-0
+//
+// While the following are in downstream but not mainline:
+//
+// - qcom,bus-width
+// - qcom,cpu-dma-latency-us
+// - qcom,msm-bus,name
+// - qcom,msm-bus,num-cases
+// - qcom,msm-bus,num-paths
+// - qcom,msm-bus,vectors-KBps
+// - qcom,bus-bw-vectors-bps
+
+
+
+// Note: Review the notes above, and determine if we are good to keep the
+// alias below unchanged. (Ensure that all the register addresses in
+// qcom-msm8226.dtsi for mmc@f9824900 are consistent between downstream falcon
+// and titan.)
+
+// Conclusion: I don't understand the differences above.
+// However, `sdhc_1` is included from the same file for both falcon and titan,
+// downstream, so it seems reasonably safe to keep this.
+
+	aliases {
+		mmc0 = &sdhc_1;
+	};
+
+// TODO: Confirm this framebuffer stuff is OK for titan
+// StandaSK says this is from msm8226-mdss.dtsi in downstream, so it's probably
+// OK to keep:
+// https://matrix.to/#/!SOoKsgrhnZdLcBqEXp:z3ntu.xyz/$cltawPnSgSMzZVMoIMbdYcioDvQFsCX8jgWy7yaqvig?via=z3ntu.xyz&via=matrix.org&via=tchncs.de
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer@3200000 {
+			compatible = "simple-framebuffer";
+			reg = <0x03200000 0x800000>;
+			width = <720>;
+			height = <1280>;
+			stride = <(720 * 3)>;
+			format = "r8g8b8";
+			vsp-supply = <&reg_lcd_pos>;
+			vsn-supply = <&reg_lcd_neg>;
+			vddio-supply = <&vddio_disp_vreg>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		// Might have wrong gpio here? Perhaps 109 from
+		// msm8226-titan-gpiomux.dtsi ?
+		event-hall-sensor {
+			label = "Hall Effect Sensor";
+			gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			linux,can-disable;
+		};
+
+		// Confirmed in downstream msm8226-moto-common.dtsi
+		// and also msm8226-titan-gpiomux.dtsi
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&tlmm 106 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <15>;
+		};
+
+		// Added this, but not sure if needed as wasn't in falcon dts
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <15>;
+		};
+	};
+
+	// Search DISP_VDDIO_EN in downstream msm8226-moto-gpiomux.dtsi
+	// Because this is common between falcon and titan we should be good.
+	vddio_disp_vreg: regulator-vddio-disp {
+		compatible = "regulator-fixed";
+		regulator-name = "vddio_disp";
+		gpio = <&tlmm 34 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&pm8226_l8>;
+		startup-delay-us = <300>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		// Search mdss_fb0 in msm8226-mdss.dtsi
+		// Note: falcon had <0x03200000 0x800000>, but I think both
+		// should be <0x03200000 0xFA0000> ??
+		// Apparently the reg size just has to be >= 720x1280x3 = 0x2a3000
+		// https://matrix.to/#/!SOoKsgrhnZdLcBqEXp:z3ntu.xyz/$qMFt4bcLc2oDYU5yJOCJ1WkWYGkf2GrcPB68c0gerWk?via=z3ntu.xyz&via=matrix.org&via=tchncs.de
+		// Might just keep it as 0x800000 to be consistent with the falcon
+		// dts.
+
+		framebuffer@3200000 {
+			reg = <0x03200000 0x800000>;
+			no-map;
+		};
+
+		// Search hob_ram in msm8226-moto-common.dtsi
+		dhob@f500000 {
+			reg = <0x0f500000 0x40000>;
+			no-map;
+		};
+
+		// Search hob_ram in msm8226-moto-common.dtsi (second reg)
+		shob@f540000 {
+			reg = <0x0f540000 0x2000>;
+			no-map;
+		};
+
+		// smem region defined in msm8226.dtsi. Search qcom,smem.
+		smem_region: smem@fa00000 {
+			reg = <0x0fa00000 0x100000>;
+			no-map;
+		};
+
+		// memory hole <0x0fa00000 0x500000> defined in all the following:
+		// - msm8226-titan-common.dtsi
+		// - msm8226-moto-common.dtsi
+		// - msm8226.dtsi
+
+		/* Actually <0x0fa00000 0x500000>, but first 100000 is smem */
+		reserved@fb00000 {
+			reg = <0x0fb00000 0x400000>;
+			no-map;
+		};
+	};
+};
+
+// Need to be careful here!
+// blsp1_i2c3 maps to ic2@f9925000 in mainline qcom-msm8226.dtsi.
+// But in downstream msm8226-titan-common.dtsi, i2c@f9925000 is disabled with:
+// 
+// status = "disabled";
+// /delete-node/ tps65132@3e;
+//
+// Beneath this is in downstream is the following:
+//
+// i2c@f9926000 { /* BLSP-1 QUP-4 */
+//        qcom,i2c-src-freq = <50000000>;
+//        tps65132@3e {
+//        	compatible = "ti,tps65132";
+//        	reg = <0x3e>;
+//        	gpios = <&msmgpio 12 0x0>, <&msmgpio 13 0x0>;
+//        	active-dis;
+//        	bias-delay-us = <2000>;
+//        	tps65132: regulator {
+//        		regulator-boot-on;
+//        		regulator-name = "tps65132";
+//        		regulator-min-microvolt = <5400000>;
+//        		regulator-max-microvolt = <5600000>;
+//        		startup-delay-us = <10000>;
+//        	};
+//        };
+//
+// This matches the address of blsp1_i2c4, so perhaps we need to enable this
+// instead?
+
+
+&blsp1_i2c4 {
+	status = "okay";
+
+	regulator@3e {
+		compatible = "ti,tps65132";
+		reg = <0x3e>;
+		// reg_lcd_default is defined below, and sets
+		// pins = "gpio31", "gpio33";
+		// This aligns with tps65132@3e in downstream 
+		// msm8226-moto-common.dtsi.
+		// HOWEVER, msm8226-titan-common.dtsi deletes the tps65132@3e node
+		// and redefines the GPIO pins to 12 and 13, and the
+		// min and max-microvolt values to 5400000 and 5600000 respectively.
+
+		pinctrl-0 = <&reg_lcd_default>;
+		pinctrl-names = "default";
+
+		// Search tps65132@3e in downstream msm8226-titan-common.dtsi
+		// for GPIO numbers and microvolt values. (See comment above.)
+		reg_lcd_pos: outp {
+			regulator-name = "outp";
+			regulator-min-microvolt = <5400000>;
+			regulator-max-microvolt = <5600000>;
+			regulator-active-discharge = <1>;
+			regulator-boot-on;
+			enable-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		reg_lcd_neg: outn {
+			regulator-name = "outn";
+			regulator-min-microvolt = <5400000>;
+			regulator-max-microvolt = <5600000>;
+			regulator-active-discharge = <1>;
+			regulator-boot-on;
+			enable-gpios = <&tlmm 13 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	// This whole temperature-sensor is disabled for titan.
+	// i2c@f9925000 has `status = "disabled"` in msm8226-titan-common.dtsi,
+	// and msm8226.dtsi labels that as i2c_3. So when it's disabled for titan,
+	// it automatically disables the sub-items such as tmp108 from
+	// msm-moto-common.dtsi.
+
+	// temperature-sensor@48 {
+	// 	compatible = "ti,tmp108";
+	// 	reg = <0x48>;
+	// 	interrupts-extended = <&tlmm 13 IRQ_TYPE_LEVEL_LOW>;
+	// 	pinctrl-0 = <&temp_alert_default>;
+	// 	pinctrl-names = "default";
+	// 	#thermal-sensor-cells = <0>;
+	// };
+};
+
+// This seems valid. Mainline pm8226.dtsi and downstream
+// msm8226-titan-common.dtsi agree on the reg address and interrupts values.
+// downstream qcom,pon-dbc-delay matches mainline debounce value.
+
+// `KEY_VOLUMEDOWN` comes from `qcom,pon_2` linux,code = 114 in downstream
+// msm-pm8226.dtsi, which is presumably common between devices, so not sure why
+// it's specified here and not in mainline pm8226.dtsi.
+// (See mainline include/uapi/linux/input-event-codes.h)
+
+// Note that downstream defines several additional interrupts which are not
+// included in mainline pm8226.dtsi. I'm not sure what these do:
+// 
+// "kpdpwr-bark", "resin-bark", "kpdpwr-resin-bark"
+&pm8226_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
+};
+
+// This seems OK. Definition in mainline pm8226.dtsi matches downstream
+// qcom,vibrator@c000 in msm-pm8226.dtsi.
+// Downstream msm8226-moto-common.dtsi contains extra details about timeouts
+// and voltage levels for different vibration functions.
+&pm8226_vib {
+	status = "okay";
+};
+
+// Search s3, etc in downstream msm8226-regulator.dtsi
+// TODO: Double-check that these are all included and valid for titan
+// Note: in downstream msm8226-regulator.dtsi, there are comments about:
+// SPM, CPR and RPM controlled regulators.
+// The below section is `rpm_requests`, so use the values from the RPM section.
+
+// Note that there is also an s1 regulator in downstream. Not sure why it's
+// missing here.
+
+
+&rpm_requests {
+	regulators {
+		compatible = "qcom,rpm-pm8226-regulators";
+
+		pm8226_s3: s3 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1300000>;
+		};
+
+		pm8226_s4: s4 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2200000>;
+		};
+
+		pm8226_s5: s5 {
+			regulator-min-microvolt = <1150000>;
+			regulator-max-microvolt = <1150000>;
+		};
+
+		pm8226_l1: l1 {
+			regulator-min-microvolt = <1225000>;
+			regulator-max-microvolt = <1225000>;
+		};
+
+		pm8226_l2: l2 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+		};
+
+		pm8226_l3: l3 {
+			regulator-min-microvolt = <750000>;
+			regulator-max-microvolt = <1337500>;
+		};
+
+		pm8226_l4: l4 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+		};
+
+		pm8226_l5: l5 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+		};
+
+		pm8226_l6: l6 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-allow-set-load;
+		};
+
+		pm8226_l7: l7 {
+			regulator-min-microvolt = <1850000>;
+			regulator-max-microvolt = <1850000>;
+		};
+
+		pm8226_l8: l8 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		pm8226_l9: l9 {
+			regulator-min-microvolt = <2050000>;
+			regulator-max-microvolt = <2050000>;
+		};
+
+		pm8226_l10: l10 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		pm8226_l12: l12 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+		};
+
+		pm8226_l14: l14 {
+			regulator-min-microvolt = <2750000>;
+			regulator-max-microvolt = <2750000>;
+		};
+
+		pm8226_l15: l15 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+		};
+
+		pm8226_l16: l16 {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3350000>;
+		};
+
+		pm8226_l17: l17 {
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+		};
+
+		pm8226_l18: l18 {
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+		};
+
+		pm8226_l19: l19 {
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+		};
+
+		pm8226_l20: l20 {
+			regulator-min-microvolt = <3075000>;
+			regulator-max-microvolt = <3075000>;
+		};
+
+		pm8226_l21: l21 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2950000>;
+			regulator-allow-set-load;
+		};
+
+		pm8226_l22: l22 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2950000>;
+		};
+
+		pm8226_l23: l23 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2950000>;
+		};
+
+		pm8226_l24: l24 {
+			regulator-min-microvolt = <1300000>;
+			regulator-max-microvolt = <1350000>;
+		};
+
+		pm8226_l25: l25 {
+			regulator-min-microvolt = <1775000>;
+			regulator-max-microvolt = <2125000>;
+		};
+
+		pm8226_l26: l26 {
+			regulator-min-microvolt = <1225000>;
+			regulator-max-microvolt = <1225000>;
+		};
+
+		pm8226_l27: l27 {
+			regulator-min-microvolt = <2050000>;
+			regulator-max-microvolt = <2050000>;
+		};
+
+        // Note: msm8226-regulator.dtsi has regulator-max-microvolt = <2950000>
+        // 
+        // Default value is overridden in msm8226-moto-common.dtsi
+        // in &pm8226_l28 section with value <3400000>.
+		pm8226_l28: l28 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3400000>;
+			regulator-boot-on;
+		};
+
+        // This is set in downstream msm8226-moto-common.dtsi
+		pm8226_lvs1: lvs1 {
+			regulator-always-on;
+		};
+	};
+};
+
+&sdhc_1 {
+    // l17 listed as vdd-supply under sdhc_1 in downstream
+    // msm8226-titan-common.dtsi
+	vmmc-supply = <&pm8226_l17>;
+    // l17 listed as vdd-io-supply under sdhc_1 in downstream
+    // msm8226-titan-common.dtsi
+	vqmmc-supply = <&pm8226_l6>;
+
+    // bus-width is the number of data lines.
+    // Downstream msm8226.dtsi defines qcom,bus-width = <8> for sdhc_1.
+	bus-width = <8>;
+    // under sdhc_1 in downstream msm8226-titan-common.dtsi
+	non-removable;
+
+	status = "okay";
+};
+
+// This is smbb: charger@1000 in mainline pm8226.dtsi.
+// It's qcom,chgr@1000 in downstream msm-pm8226.dtsi, msm8226.dtsi
+// and most notably in msm8226-moto-common.dtsi.
+// It appears that downstream uses millivolts and milliamps, while mainline
+// uses microvolts and microamps. Taking this into account we see some
+// matching values to the below in pm8226_chg_fac: qcom,chargerfac:
+&smbb {
+    // downstream: qcom-ibatmax-ma
+	qcom,fast-charge-safe-current = <2000000>;
+    // TODO: Not sure where this comes from. Seems reasonable to set the
+    // current limit to 0.1 Amps less than the safe current though.
+	qcom,fast-charge-current-limit = <1900000>;
+    // downstream: qcom,vddsafe-mv
+	qcom,fast-charge-safe-voltage = <4400000>;
+    // downstream: qcom,vinmin-mv
+	qcom,minimum-input-voltage = <4300000>;
+
+	status = "okay";
+};
+
+//TODO: Up to here
+&tlmm {
+	// Search tps65132@3e in downstream msm8226-titan-common.dtsi
+	reg_lcd_default: reg-lcd-default-state {
+		pins = "gpio12", "gpio13";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+    // Search pin@fd51220 or DISP_VDDIO_EN in downstream
+    // msm8226-moto-gpiomux.dtsi
+    // A comment indicates drive strength is 2mA and output-high.
+    // Not sure where bias-disable comes from. Perhaps it is
+    // qcom,pin-keep-state?
+	reg_vddio_disp_default: reg-vddio-disp-default-state {
+		pins = "gpio34";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+    // Disabled, see earlier.
+	// temp_alert_default: temp-alert-default-state {
+	// 	pins = "gpio13";
+	// 	function = "gpio";
+	// 	drive-strength = <2>;
+	// 	bias-disable;
+	// 	output-disable;
+	// };
+};
+
+// This seems reasonably safe?
+// TODO: Track down where extcon = <&smbb> comes from
+&usb {
+	extcon = <&smbb>;
+	dr_mode = "peripheral";
+	status = "okay";
+};
+
+// Search HSUSB_1p8-supply in msm8226.dtsi
+// TODO: Track down where extcon = <&smbb> comes from
+&usb_hs_phy {
+	extcon = <&smbb>;
+	v1p8-supply = <&pm8226_l10>;
+	v3p3-supply = <&pm8226_l20>;
+};
