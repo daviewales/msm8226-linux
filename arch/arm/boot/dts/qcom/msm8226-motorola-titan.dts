@@ -161,10 +161,17 @@
 		};
 
 		// Added this, but not sure if needed as wasn't in falcon dts
+        // COULD THIS BE WHY I'M ENDING UP IN DEBUG SHELL WITH pmbootstrap flasher boot?
+        // i.e. because holding volume down appears to trigger the debug shell
+        // So if this is connected wrong and appears to be always on, perhaps that causes debug shell?
+        // Seems unlikely, because this is clearly defined in
+        // msm8226-titan-common.dtsi
+        // Except I defined this as VOLUMEUP instead of VOLUMEDOWN...
+        // Fixed now...
 		key-volume-down {
 			label = "Volume Down";
 			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_VOLUMEUP>;
+			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <15>;
 		};
 	};
