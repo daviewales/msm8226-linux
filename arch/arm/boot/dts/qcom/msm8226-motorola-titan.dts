@@ -102,7 +102,6 @@
 // - qcom,bus-bw-vectors-bps
 
 
-
 // Note: Review the notes above, and determine if we are good to keep the
 // alias below unchanged. (Ensure that all the register addresses in
 // qcom-msm8226.dtsi for mmc@f9824900 are consistent between downstream falcon
@@ -114,6 +113,7 @@
 
 	aliases {
 		mmc0 = &sdhc_1;
+		mmc1 = &sdhc_2;
 	};
 
 // TODO: Confirm this framebuffer stuff is OK for titan
@@ -249,7 +249,7 @@
 // Need to be careful here!
 // blsp1_i2c3 maps to ic2@f9925000 in mainline qcom-msm8226.dtsi.
 // But in downstream msm8226-titan-common.dtsi, i2c@f9925000 is disabled with:
-// 
+//
 // status = "disabled";
 // /delete-node/ tps65132@3e;
 //
@@ -284,7 +284,7 @@
 		reg = <0x3e>;
 		// reg_lcd_default is defined below, and sets
 		// pins = "gpio31", "gpio33";
-		// This aligns with tps65132@3e in downstream 
+		// This aligns with tps65132@3e in downstream
 		// msm8226-moto-common.dtsi.
 		// HOWEVER, msm8226-titan-common.dtsi deletes the tps65132@3e node
 		// and redefines the GPIO pins to 12 and 13, and the
@@ -341,7 +341,7 @@
 
 // Note that downstream defines several additional interrupts which are not
 // included in mainline pm8226.dtsi. I'm not sure what these do:
-// 
+//
 // "kpdpwr-bark", "resin-bark", "kpdpwr-resin-bark"
 &pm8226_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
@@ -476,6 +476,10 @@
 			regulator-max-microvolt = <3075000>;
 		};
 
+        // Check this against msm8226-regulator.dtsi
+        // Why do we have regulator-allow-set-load here?
+        // Also, do we need to set the init-voltage?
+        // Used for SD Card sdhc_2, so maybe this is why it's not working?
 		pm8226_l21: l21 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2950000>;
@@ -513,7 +517,7 @@
 		};
 
         // Note: msm8226-regulator.dtsi has regulator-max-microvolt = <2950000>
-        // 
+        //
         // Default value is overridden in msm8226-moto-common.dtsi
         // in &pm8226_l28 section with value <3400000>.
 		pm8226_l28: l28 {
@@ -542,6 +546,48 @@
 	bus-width = <8>;
     // under sdhc_1 in downstream msm8226-titan-common.dtsi
 	non-removable;
+
+	status = "okay";
+};
+
+
+// Removable SD card
+// Adapted from here:
+// https://wiki.postmarketos.org/wiki/MSM8916_Mainlining#SD_card
+// See also sdhc_2 in downstream msm8226-titan-common.dtsi
+// Also search SD_CARD_DET_N in downstream msm8226-titan-gpiomux.dtsi
+
+&sdhc_2 {
+    // Do we need *-supply sections like sdhc_1?
+	vmmc-supply = <&pm8226_l18>;
+	vqmmc-supply = <&pm8226_l21>;
+
+    // See sdhc_2 in mainline qcom-msm8226.dtsi for pinctrl-0
+    // We extend it here to include the detection GPIO.
+    // Note that we don't need to specify pinctrl-1 because the purpose of
+    // extending it is to incorporate the active@0 and suspend@1 (default,
+    // sleep) nodes for the detection pin@fd51260 in downstream
+    // msm8226-titan-gpiomux.dtsi, but the values are the same for both active
+    // and suspend, so there's no need to specify the sleep state.
+    // See discussion here:
+    // https://matrix.to/#/!SOoKsgrhnZdLcBqEXp:z3ntu.xyz/$4C_AL0Hj39DaZ1HipkB5AKFDyLoMEbnG-JukZ3KVJ6k?via=z3ntu.xyz&via=matrix.org&via=tchncs.de
+    // See also Documentation/devicetree/bindings/mmc/sdhci-msm.yaml
+    // for definition of pinctrl-0 = default, pinctrl-1 = sleep.
+
+    // Do we need to split this like in milletwifi dts?
+    // Check sdhc2_cd_default to see if it should be bias-disable like
+    // milletwifi
+	pinctrl-0 = <&sdhc2_default_state>, <&sdhc2_cd_default>;
+    pinctrl-names = "default";
+
+    // downstream msm8226-titan-common.dtsi has:
+    // cd-gpios = <&msmgpio 38 0x1>;
+    // 0x1 appears to correspond to GPIO_ACTIVE_LOW, which is different to
+    // the example code in the wiki.
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+
+    // Downstream msm8226.dtsi defines qcom,bus-width = <4> for sdhc_2.
+    bus-width = <4>;
 
 	status = "okay";
 };
@@ -584,7 +630,7 @@
     //     "bias-* corresponds to qcom,pull in -gpiomux.dtsi. bias-disable
     //     is <0> (i.e. none)"
     // https://matrix.to/#/!SOoKsgrhnZdLcBqEXp:z3ntu.xyz/$acg1EhXV3ifdM-Jbe32EIZrcC58FA1Ka0MESjgZUPDM?via=z3ntu.xyz&via=matrix.org&via=tchncs.de
-    
+
 	reg_vddio_disp_default: reg-vddio-disp-default-state {
 		pins = "gpio10";
 		function = "gpio";
@@ -601,10 +647,26 @@
 	// 	bias-disable;
 	// 	output-disable;
 	// };
+
+    // For removable SD card
+    // See: https://wiki.postmarketos.org/wiki/MSM8916_Mainlining#SD_card
+    // Also search SD_CARD_DET_N in downstream msm8226-titan-gpiomux.dtsi
+    sdhc2_cd_default: sdhc2-cd-default-state {
+		pins = "gpio38";
+		function = "gpio";
+		drive-strength = <2>;
+        // msm8226-titan-gpiomux.dtsi has qcom,pull = <3>, and a comment
+        // stating 'up'. Guessing this means `bias-pull-up`?
+		bias-pull-up;
+	};
 };
 
 // This seems reasonably safe?
-// TODO: Track down where extcon = <&smbb> comes from
+// See: https://wiki.postmarketos.org/wiki/MSM8916_Mainlining#USB
+// smbb is defined in mainline pm8226.dtsi as an alias for charger@1000.
+// It seems related to &pm8226_chg and qcom,chgr@1000 in downstream
+// We appear to be using PMIC pm8226 to detect USB as described here:
+// https://wiki.postmarketos.org/wiki/MSM8916_Mainlining#Otherwise
 &usb {
 	extcon = <&smbb>;
 	dr_mode = "peripheral";
@@ -612,7 +674,6 @@
 };
 
 // Search HSUSB_1p8-supply in msm8226.dtsi
-// TODO: Track down where extcon = <&smbb> comes from
 &usb_hs_phy {
 	extcon = <&smbb>;
 	v1p8-supply = <&pm8226_l10>;
