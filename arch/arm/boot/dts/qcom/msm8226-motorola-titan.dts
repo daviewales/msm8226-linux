@@ -583,9 +583,11 @@
     // For example, search '&sdc2_cd_on' at the link above.
     // Check if we need to add pinctrl-1 now that we've got &sdc2_cd_on, so we can
     // specify &sdc2_cd_off as described in the link above.
-	pinctrl-0 = <&sdhc2_default_state &sdhc2_cd_default &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default &sdc2_cd_on>;
-    pinctrl-names = "default", "sleep";
+	/* pinctrl-0 = <&sdhc2_default_state &sdhc2_cd_default &sdc2_cd_on>; */
+	/* pinctrl-1 = <&sdc2_sleep &sdc2_cd_default &sdc2_cd_on>; */
+    /* pinctrl-names = "default", "sleep"; */
+    pinctrl-0 = <&sdhc2_default_state &sdhc2_cd_default>;
+    pinctrl-names = "default";
 
     // downstream msm8226-titan-common.dtsi has:
     // cd-gpios = <&msmgpio 38 0x1>;
