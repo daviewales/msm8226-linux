@@ -116,7 +116,8 @@
 		mmc1 = &sdhc_2;
 	};
 
-// TODO: Confirm this framebuffer stuff is OK for titan
+// TODO: Confirm this framebuffe
+// stuff is OK for titan
 // StandaSK says this is from msm8226-mdss.dtsi in downstream, so it's probably
 // OK to keep:
 // https://matrix.to/#/!SOoKsgrhnZdLcBqEXp:z3ntu.xyz/$cltawPnSgSMzZVMoIMbdYcioDvQFsCX8jgWy7yaqvig?via=z3ntu.xyz&via=matrix.org&via=tchncs.de
@@ -135,6 +136,18 @@
 			vsp-supply = <&reg_lcd_pos>;
 			vsn-supply = <&reg_lcd_neg>;
 			vddio-supply = <&vddio_disp_vreg>;
+
+			// TODO: Confirm this is correct. Copied from:
+			// https://github.com/msm8226-mainline/linux/blob/qcom-msm8226-6.15.y/arch/arm/boot/dts/qcom/msm8226-motorola-falcon.dts
+			/* clocks = <&mmcc MDSS_AHB_CLK>, */
+			/* 	 <&mmcc MDSS_AXI_CLK>, */
+			/* 	 <&mmcc MDSS_BYTE0_CLK>, */
+			/* 	 <&mmcc MDSS_ESC0_CLK>, */
+			/* 	 <&mmcc MDSS_MDP_CLK>, */
+			/* 	 <&mmcc MMSS_MISC_AHB_CLK>, */
+			/* 	 <&mmcc MDSS_PCLK0_CLK>, */
+			/* 	 <&mmcc MDSS_VSYNC_CLK>; */
+			/* power-domains = <&mmcc MDSS_GDSC>; */
 		};
 	};
 
@@ -183,6 +196,12 @@
 	vddio_disp_vreg: regulator-vddio-disp {
 		compatible = "regulator-fixed";
 		regulator-name = "vddio_disp";
+
+		// TODO: Check if this is correct. Copied from:
+		// https://github.com/msm8226-mainline/linux/blob/5ca1e21c642d7d13b6283106c3c91f53f460a8de/arch/arm/boot/dts/qcom/msm8226-motorola-falcon.dts#L69-L70
+		/* regulator-min-microvolt = <1800000>; */
+		/* regulator-max-microvolt = <1800000>; */
+
 		gpio = <&tlmm 10 GPIO_ACTIVE_HIGH>;
         // This appears to be property `parent-supply` in downstream
         // msm8226-moto-common.dtsi. However, msm8226-titan-common.dtsi appears
@@ -211,7 +230,8 @@
 		// dts.
 
 		framebuffer@3200000 {
-			reg = <0x03200000 0x800000>;
+			/* reg = <0x03200000 0x800000>; */
+			reg = <0x03200000 0xfa0000>;
 			no-map;
 		};
 
