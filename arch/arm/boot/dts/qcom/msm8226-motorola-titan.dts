@@ -139,15 +139,15 @@
 
 			// TODO: Confirm this is correct. Copied from:
 			// https://github.com/msm8226-mainline/linux/blob/qcom-msm8226-6.15.y/arch/arm/boot/dts/qcom/msm8226-motorola-falcon.dts
-			/* clocks = <&mmcc MDSS_AHB_CLK>, */
-			/* 	 <&mmcc MDSS_AXI_CLK>, */
-			/* 	 <&mmcc MDSS_BYTE0_CLK>, */
-			/* 	 <&mmcc MDSS_ESC0_CLK>, */
-			/* 	 <&mmcc MDSS_MDP_CLK>, */
-			/* 	 <&mmcc MMSS_MISC_AHB_CLK>, */
-			/* 	 <&mmcc MDSS_PCLK0_CLK>, */
-			/* 	 <&mmcc MDSS_VSYNC_CLK>; */
-			/* power-domains = <&mmcc MDSS_GDSC>; */
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MDSS_BYTE0_CLK>,
+				 <&mmcc MDSS_ESC0_CLK>,
+				 <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc MMSS_MISC_AHB_CLK>,
+				 <&mmcc MDSS_PCLK0_CLK>,
+				 <&mmcc MDSS_VSYNC_CLK>;
+			power-domains = <&mmcc MDSS_GDSC>;
 		};
 	};
 
